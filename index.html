@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>GravityLab</title>
+    <style>
+      :root {
+        --glass-bg: rgba(20, 20, 20, 0.75);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --apple-blue: #0A84FF;
+        --text-primary: #FFFFFF;
+        --text-secondary: #86868b;
+        --radius: 18px;
+        --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+      }
+
+      body { 
+        margin: 0; 
+        overflow: hidden; 
+        background-color: #000; 
+        color: var(--text-primary); 
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        touch-action: none;
+        -webkit-font-smoothing: antialiased;
+      }
+      
+      #ui-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+        box-sizing: border-box;
+        z-index: 10;
+      }
+
+      .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px 18px;
+        pointer-events: auto;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      }
+
+      /* Header Layout */
+      #header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        max-width: 480px;
+        gap: 10px;
+        position: relative; /* For dropdown positioning */
+      }
+
+      #header-card {
+        flex-grow: 1;
+      }
+
+      h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+      p { margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary); }
+
+      /* Buttons */
+      .icon-btn {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-radius: 50%;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        font-size: 18px;
+        pointer-events: auto;
+        transition: transform 0.1s;
+      }
+      .icon-btn:active { transform: scale(0.9); }
+
+      /* Language Dropdown */
+      #lang-dropdown {
+        position: absolute;
+        top: 60px;
+        right: 100px; /* Align near lang button */
+        background: rgba(30, 30, 30, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        padding: 8px 0;
+        display: none;
+        flex-direction: column;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 200;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        pointer-events: auto;
+      }
+      
+      #lang-dropdown.show { display: flex; }
+
+      .lang-item {
+        padding: 8px 20px;
+        color: #ddd;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.2s;
+        white-space: nowrap;
+      }
+      .lang-item:hover { background: var(--apple-blue); color: white; }
+
+      /* Stats */
+      #stats-card {
+        align-self: flex-end;
+        font-family: "SF Mono", SFMono-Regular, ui-monospace, monospace;
+        font-size: 10px;
+        color: var(--text-secondary);
+        letter-spacing: -0.5px;
+      }
+
+      /* GUI Overrides */
+      .lil-gui { 
+        --background-color: rgba(28, 28, 30, 0.85);
+        --text-color: #f5f5f7;
+        --title-background-color: rgba(28, 28, 30, 0.95);
+        --widget-color: #3a3a3c;
+        --hover-color: #48484a;
+        --focus-color: #636366;
+        --number-color: #0A84FF;
+        --string-color: #30D158;
+        border-radius: 14px !important;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.5) !important;
+      }
+      .lil-gui.root { top: 80px !important; right: 16px !important; }
+
+      /* Documentation Modal */
+      #docs-modal {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.95);
+        width: 90%;
+        max-width: 600px;
+        height: 80%;
+        max-height: 800px;
+        background: rgba(25, 25, 25, 0.95);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        z-index: 100;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      #docs-modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+      #docs-header { padding: 20px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; background: rgba(30,30,30,0.5); }
+      #docs-title { font-size: 18px; font-weight: 600; }
+      #close-btn { background: rgba(255,255,255,0.1); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; }
+      #docs-content { padding: 30px; overflow-y: auto; line-height: 1.6; font-size: 15px; color: #ddd; }
+      #docs-content h2 { margin-top: 30px; color: var(--apple-blue); font-size: 20px; }
+      #docs-content ul { padding-left: 20px; color: #aaa; }
+      #docs-content code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #ff9f0a; }
+
+      /* Mobile Specifics */
+      @media (max-width: 768px) {
+        #header-row { max-width: 100%; }
+        #header-card { padding: 10px 16px; border-radius: 14px; }
+        h1 { font-size: 15px; }
+        p { font-size: 11px; }
+        #stats-card { width: 100%; text-align: center; border-radius: 14px; padding: 10px; margin-bottom: 0px; }
+        .lil-gui.root { width: auto !important; left: 16px !important; right: 16px !important; bottom: 60px !important; top: auto !important; }
+        #docs-modal { width: 95%; height: 90%; }
+        #lang-dropdown { right: 60px; top: 60px; max-height: 200px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ui-layer">
+      <div id="header-row">
+        <div id="header-card" class="glass-panel">
+          <h1 data-i18n="title">GravityLab</h1>
+          <p data-i18n="subtitle">Interactive Gravity Sandbox</p>
+        </div>
+        <div id="lang-btn" class="icon-btn" title="Language">🌐</div>
+        <div id="doc-btn" class="icon-btn" title="Documentation">📖</div>
+        <div id="music-btn" class="icon-btn" title="Music">🎵</div>
+
+        <!-- Language Dropdown -->
+        <div id="lang-dropdown"></div>
+      </div>
+      <div id="stats-card" class="glass-panel" data-i18n="initializing">Initializing...</div>
+    </div>
+
+    <!-- Documentation Modal -->
+    <div id="docs-modal">
+      <div id="docs-header">
+        <div id="docs-title" data-i18n="docs_title">GravityLab Specs</div>
+        <button id="close-btn">✕</button>
+      </div>
+      <div id="docs-content">
+        <h2 data-i18n="docs_overview">Overview</h2>
+        <p data-i18n="docs_overview_text">GravityLab is a high-performance...</p>
+        
+        <h2 data-i18n="docs_features">Key Features</h2>
+        <ul>
+          <li><strong data-i18n="feat_physics">N-Body Physics:</strong>...</li>
+          <li><strong data-i18n="feat_collision">Collision & Merging:</strong>...</li>
+          <li><strong data-i18n="feat_audio">Generative Audio:</strong>...</li>
+        </ul>
+
+        <h2 data-i18n="docs_controls">Controls</h2>
+        <ul>
+          <li data-i18n="ctrl_rotate">Rotate: Left Click + Drag</li>
+          <li data-i18n="ctrl_pan">Pan: Right Click + Drag</li>
+          <li data-i18n="ctrl_track">Track: Click on any star</li>
+        </ul>
+
+        <h2 data-i18n="docs_tech">Technical Stack</h2>
+        <p data-i18n="tech_text">Built with TypeScript...</p>
+        <p style="margin-top:40px; font-size:12px; color:#666;">© 2024 GravityLab Project</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
