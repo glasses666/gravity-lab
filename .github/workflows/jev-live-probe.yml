@@ -1,0 +1,50 @@
+name: Jev Live Probe
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/jev-live-probe.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
+          ping: iz7xv8p0i0u9iehe5j6jgvz.tail0efbb0.ts.net
+
+      - name: Remote Jev probe
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          TARGET='iz7xv8p0i0u9iehe5j6jgvz.tail0efbb0.ts.net'
+          tailscale ssh "root@$TARGET" '
+            set -Eeuo pipefail
+            test -f "$HOME/jev"
+            echo "key_file=present"
+            BODY='''{"model":"jev-latest","state":{"text":"Please remind me tomorrow morning to bring my drone batteries."},"questions":{"intent":{"type":"choice","instructions":"Classify what the user wants.","criteria":{"reminder":"The user wants a reminder or scheduled follow-up.","other":"The user wants something else."}}}}'''
+            t0=$(date +%s%N)
+            code=$(curl -sS --connect-timeout 5 --max-time 30               -o /tmp/jev.out -w "%{http_code}"               -X POST https://api.typesafe.ai/v1/systemone               -H "Authorization: Bearer $(tr -d "\r\n" < "$HOME/jev")"               -H "Content-Type: application/json"               --data "$BODY")
+            t1=$(date +%s%N)
+            echo "http=$code"
+            echo "wall_ms=$(( (t1-t0)/1000000 ))"
+            python3 - <<'''PY'''
+import json
+try:
+    data=json.load(open("/tmp/jev.out"))
+    print("response="+json.dumps(data, ensure_ascii=False, separators=(",",":")))
+except Exception:
+    print("response=[non-json]")
+PY
+            rm -f /tmp/jev.out
+          '
