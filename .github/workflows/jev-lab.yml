@@ -1,0 +1,81 @@
+name: Jev Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: Text for Jev to judge
+        required: true
+        default: Investigate why my remote Node.js service cannot connect over WebSocket and fix the code if needed.
+
+permissions:
+  contents: read
+
+jobs:
+  jev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call Jev
+        shell: bash
+        env:
+          TYPESAFE_API_KEY: REPLACE_WITH_GITHUB_SECRET_REFERENCE
+          INPUT_TEXT: ${{ github.event.inputs.text }}
+        run: |
+          set -Eeuo pipefail
+          if [ "$TYPESAFE_API_KEY" = "REPLACE_WITH_GITHUB_SECRET_REFERENCE" ] || [ -z "${TYPESAFE_API_KEY:-}" ]; then
+            echo "::error::Wire TYPESAFE_API_KEY to the repository secret before running"
+            exit 2
+          fi
+
+          jq -n --arg text "$INPUT_TEXT" '{
+            model: "jev-latest",
+            state: {text: $text},
+            questions: {
+              route: {
+                type: "choice",
+                instructions: "Which kind of system should primarily handle this request?",
+                criteria: {
+                  direct_tool: "A deterministic tool or simple command can complete it.",
+                  fast_model: "A fast language model can answer or classify it.",
+                  reasoning_agent: "A coding or reasoning agent should investigate or modify code across multiple steps."
+                }
+              },
+              needs_external_action: {
+                type: "noul",
+                instructions: "Does completing this request require taking an action in an external system rather than only returning text?"
+              }
+            }
+          }' > /tmp/jev-request.json
+
+          START_NS="$(date +%s%N)"
+          METRICS="$(curl -sS --connect-timeout 5 --max-time 30 -o /tmp/jev-response.json -w '%{http_code} %{time_total}' -X POST https://api.typesafe.ai/v1/systemone -H "Authorization: Bearer $TYPESAFE_API_KEY" -H 'Content-Type: application/json' --data-binary @/tmp/jev-request.json)"
+          END_NS="$(date +%s%N)"
+          read -r HTTP_CODE CURL_SECONDS <<< "$METRICS"
+          WALL_MS=$(( (END_NS - START_NS) / 1000000 ))
+
+          echo "HTTP $HTTP_CODE"
+          echo "curl_total=${CURL_SECONDS}s"
+          echo "wall_ms=${WALL_MS}"
+          jq . /tmp/jev-response.json
+          [ "$HTTP_CODE" = "200" ]
+
+          MODEL="$(jq -r '.model' /tmp/jev-response.json)"
+          ROUTE="$(jq -r '.answers.route.choice' /tmp/jev-response.json)"
+          CONFIDENCE="$(jq -r '.answers.route.confidence' /tmp/jev-response.json)"
+          EXTERNAL="$(jq -r '.answers.needs_external_action.noul' /tmp/jev-response.json)"
+          INPUT_TOKENS="$(jq -r '.usage.input_tokens' /tmp/jev-response.json)"
+          OUTPUT_TOKENS="$(jq -r '.usage.output_tokens' /tmp/jev-response.json)"
+
+          {
+            echo "## Jev Lab"
+            echo "- Model: $MODEL"
+            echo "- Route: $ROUTE"
+            echo "- Confidence: $CONFIDENCE"
+            echo "- Needs external action: $EXTERNAL"
+            echo "- Input tokens: $INPUT_TOKENS"
+            echo "- Output tokens: $OUTPUT_TOKENS"
+            echo "- API time: ${CURL_SECONDS}s"
+            echo "- Wall time: ${WALL_MS} ms"
+            echo "- Probabilities: $(jq -c '.answers.route.probabilities' /tmp/jev-response.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
