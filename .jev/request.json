@@ -1,0 +1,25 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "text": "Tonight at 7 PM, remind me to charge my drone batteries."
+  },
+  "questions": {
+    "route": {
+      "type": "choice",
+      "instructions": "Which kind of system should primarily handle this request?",
+      "criteria": {
+        "direct_tool": "A deterministic tool such as a reminder or scheduler can complete it.",
+        "fast_model": "A fast language model can answer or classify it without taking an external action.",
+        "reasoning_agent": "A multi-step reasoning or coding agent is required."
+      }
+    },
+    "needs_external_action": {
+      "type": "noul",
+      "instructions": "Does fully completing this request require an external action rather than only returning text?",
+      "criteria": {
+        "true": "A reminder, message, edit, command, or other external action is needed.",
+        "false": "A text response alone completes the request."
+      }
+    }
+  }
+}
