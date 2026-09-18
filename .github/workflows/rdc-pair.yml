@@ -1,0 +1,40 @@
+name: RDC Pairing Link
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/rdc-pair.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  pair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
+          ping: iz7xv8p0i0u9iehe5j6jgvz.tail0efbb0.ts.net
+
+      - name: Install Node 22 and request pairing code
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          TARGET='iz7xv8p0i0u9iehe5j6jgvz.tail0efbb0.ts.net'
+          timeout 120s tailscale ssh "root@$TARGET" 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          export NVM_DIR=/root/.nvm
+          . "$NVM_DIR/nvm.sh"
+          nvm install 22
+          nvm use 22
+          echo "node_version=$(node -v)"
+          timeout 55s npx -y @wonderwhy-er/desktop-commander@latest remote || true
+          REMOTE
