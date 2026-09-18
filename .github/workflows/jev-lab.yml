@@ -19,7 +19,7 @@ jobs:
       - name: Call Jev
         shell: bash
         env:
-          TYPESAFE_API_KEY: REPLACE_WITH_GITHUB_SECRET_REFERENCE
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
           INPUT_TEXT: ${{ github.event.inputs.text }}
         run: |
           set -Eeuo pipefail
