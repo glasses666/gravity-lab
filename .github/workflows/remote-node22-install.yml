@@ -1,0 +1,49 @@
+name: Remote Node22 Install
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/remote-node22-install.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Join tailnet
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
+          ping: iz7xv8p0i0u9iehe5j6jgvz.tail0efbb0.ts.net
+
+      - name: Install Node 22 for root nvm
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          TARGET='iz7xv8p0i0u9iehe5j6jgvz.tail0efbb0.ts.net'
+          timeout 180s tailscale ssh "root@$TARGET" 'bash -s' <<'REMOTE'
+          set -Eeuo pipefail
+          export NVM_DIR="/root/.nvm"
+          test -s "$NVM_DIR/nvm.sh"
+          . "$NVM_DIR/nvm.sh"
+
+          echo "before_node=$(node -v)"
+          nvm install 22
+          nvm use 22
+          echo "after_node=$(node -v)"
+          echo "npm=$(npm -v)"
+          echo "npx=$(npx -v)"
+
+          echo "opai=$(systemctl is-active opai)"
+          echo "nginx=$(systemctl is-active nginx)"
+          echo "tailscaled=$(systemctl is-active tailscaled)"
+          echo "opai_exec=$(systemctl show opai -p ExecStart --value | sed -n '1p')"
+          REMOTE
